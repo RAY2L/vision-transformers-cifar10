@@ -48,6 +48,8 @@ parser.add_argument('--dimhead', default="512", type=int)
 parser.add_argument('--convkernel', default='8', type=int, help="parameter for convmixer")
 parser.add_argument('--use_conv', action='store_true', help='apply convolutions in ViT')
 parser.add_argument('--kernel_size', type=int, default='3')
+parser.add_argument('--stride', type=int, default='1')
+parser.add_argument('--padding', type=int, default='1')
 
 args = parser.parse_args()
 
@@ -67,6 +69,8 @@ use_amp = not args.noamp
 aug = args.noaug
 use_conv = bool(args.use_conv)
 kernel_size = args.kernel_size
+stride = args.stride
+padding = args.padding
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
@@ -183,11 +187,13 @@ elif args.net=="vit":
     dropout = 0.1,
     emb_dropout = 0.1,
     use_conv = use_conv,
-    kernel_size = kernel_size
+    kernel_size = kernel_size,
+    stride = stride,
+    padding = padding
 )
     
     if use_conv:
-        print(f"ViT convolution: kernel size ({kernel_size})")
+        print(f"ViT convolution: kernel size {kernel_size}, stride {stride}, padding {padding}")
 elif args.net=="vit_timm":
     import timm
     net = timm.create_model("vit_base_patch16_384", pretrained=True)
