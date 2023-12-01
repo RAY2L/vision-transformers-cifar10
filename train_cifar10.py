@@ -155,8 +155,7 @@ elif args.net=="vit_tiny":
     heads = 6,
     mlp_dim = 256,
     dropout = 0.1,
-    emb_dropout = 0.1,
-    use_conv = args.use_conv
+    emb_dropout = 0.1
 )
 elif args.net=="simplevit":
     from models.simplevit import SimpleViT
@@ -180,8 +179,12 @@ elif args.net=="vit":
     heads = 8,
     mlp_dim = 512,
     dropout = 0.1,
-    emb_dropout = 0.1
+    emb_dropout = 0.1,
+    use_conv = args.use_conv
 )
+    
+    if use_conv:
+        print("Using convolution for ViT")
 elif args.net=="vit_timm":
     import timm
     net = timm.create_model("vit_base_patch16_384", pretrained=True)
