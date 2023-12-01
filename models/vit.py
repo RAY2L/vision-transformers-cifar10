@@ -79,7 +79,7 @@ class Transformer(nn.Module):
         return x
 
 class ViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0., use_conv = False):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
@@ -109,7 +109,17 @@ class ViT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
+        self.use_conv = use_conv
+        self.conv_layer = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1, groups=channels)
+
     def forward(self, img):
+        if self.use_conv:
+            # Apply the convolutional layer to the input
+            conv_img = self.conv_layer(img)
+
+            # Add the convolved image back to the original input
+            img = img + conv_img
+
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
 

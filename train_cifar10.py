@@ -46,6 +46,7 @@ parser.add_argument('--n_epochs', type=int, default='200')
 parser.add_argument('--patch', default='4', type=int, help="patch for ViT")
 parser.add_argument('--dimhead', default="512", type=int)
 parser.add_argument('--convkernel', default='8', type=int, help="parameter for convmixer")
+parser.add_argument('--use_conv', action='store_true', help='apply convolutions in ViT')
 
 args = parser.parse_args()
 
@@ -63,6 +64,7 @@ imsize = int(args.size)
 
 use_amp = not args.noamp
 aug = args.noaug
+use_conv = bool(args.use_conv)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
@@ -153,7 +155,8 @@ elif args.net=="vit_tiny":
     heads = 6,
     mlp_dim = 256,
     dropout = 0.1,
-    emb_dropout = 0.1
+    emb_dropout = 0.1,
+    use_conv = args.use_conv
 )
 elif args.net=="simplevit":
     from models.simplevit import SimpleViT
