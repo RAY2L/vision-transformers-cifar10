@@ -118,7 +118,7 @@ class ViT(nn.Module):
             conv_img = self.conv_layer(img)
 
             # Add the convolved image back to the original input
-            img = img + conv_img
+            img = img * conv_img
 
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
