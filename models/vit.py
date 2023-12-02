@@ -110,19 +110,22 @@ class ViT(nn.Module):
         )
 
         self.use_conv = use_conv
-        if use_conv:
-            # Calculate the output dimensions after the convolution
+        # Always define conv_layer, but use nn.Identity() if use_conv is False
+        if self.use_conv:
+            self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
             conv_output_height = (image_height + 2 * padding - kernel_size) // stride + 1
             conv_output_width = (image_width + 2 * padding - kernel_size) // stride + 1
-
-            # Flattened size of the convolutional output
             conv_output_flat_dim = channels * conv_output_height * conv_output_width
+        else:
+            self.conv_layer = nn.Identity()
+            conv_output_flat_dim = 0  # No additional features from convolution
 
-            self.fusion_layer = nn.Sequential(
-                nn.Linear(dim + conv_output_flat_dim, dim),
-                nn.ReLU(),
-                nn.Linear(dim, dim)
-            )
+        # Adjust the fusion_layer to handle both cases
+        self.fusion_layer = nn.Sequential(
+            nn.Linear(dim + conv_output_flat_dim, dim),
+            nn.ReLU(),
+            nn.Linear(dim, dim)
+        )
 
     def forward(self, img):
         b, _, _, _ = img.shape
