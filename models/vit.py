@@ -110,27 +110,44 @@ class ViT(nn.Module):
         )
 
         self.use_conv = use_conv
-        self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
+        if self.use_conv:
+            self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
+
+            # Define additional fusion layers
+            self.fusion_layer = nn.Sequential(
+                nn.Linear(dim + channels * patch_size * patch_size, dim),
+                nn.ReLU(),
+                nn.Linear(dim, dim)
+            )
 
     def forward(self, img):
+        b, _, _, _ = img.shape
+
         if self.use_conv:
             # Apply the convolutional layer to the input
-            conv_img = self.conv_layer(img)
-
-            # Add the convolved image back to the original input
-            img = img + img * conv_img
+            conv_features = self.conv_layer(img)
+            # Flatten convolutional features
+            conv_features = conv_features.view(b, -1)
 
         x = self.to_patch_embedding(img)
-        b, n, _ = x.shape
-
-        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=b)
         x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, :(n + 1)]
+        x += self.pos_embedding[:, :(x.shape[1])]
         x = self.dropout(x)
 
-        x = self.transformer(x)
+        transformer_output = self.transformer(x)
 
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
+        if self.pool == 'mean':
+            transformer_output = transformer_output.mean(dim=1)
+        else:
+            transformer_output = transformer_output[:, 0]
 
-        x = self.to_latent(x)
-        return self.mlp_head(x)
+        if self.use_conv:
+            # Concatenate transformer and convolutional features
+            combined_features = torch.cat([transformer_output, conv_features], dim=1)
+            fused_features = self.fusion_layer(combined_features)
+            final_features = fused_features
+        else:
+            final_features = transformer_output
+
+        return self.mlp_head(final_features)
