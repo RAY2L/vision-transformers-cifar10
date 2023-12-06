@@ -110,53 +110,27 @@ class ViT(nn.Module):
         )
 
         self.use_conv = use_conv
-        # Always define conv_layer, but use nn.Identity() if use_conv is False
-        if self.use_conv:
-            self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
-            conv_output_height = (image_height + 2 * padding - kernel_size) // stride + 1
-            conv_output_width = (image_width + 2 * padding - kernel_size) // stride + 1
-            conv_output_flat_dim = channels * conv_output_height * conv_output_width
-        else:
-            self.conv_layer = nn.Identity()
-            conv_output_flat_dim = 0  # No additional features from convolution
-
-        # Adjust the fusion_layer to handle both cases
-        self.fusion_layer = nn.Sequential(
-            nn.Linear(dim + conv_output_flat_dim, dim),
-            nn.ReLU(),
-            nn.Linear(dim, dim)
-        )
+        self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
 
     def forward(self, img):
-        b, _, _, _ = img.shape
-
-        # Apply the convolutional layer if use_conv is True
         if self.use_conv:
-            conv_features = self.conv_layer(img)
-            # Flatten the convolutional features to a vector
-            conv_features = conv_features.view(b, -1)
+            # Apply the convolutional layer to the input
+            conv_img = self.conv_layer(img)
 
-        # Transform the image into patches and pass through the Transformer
+            # Add the convolved image back to the original input
+            img = img + conv_img
+
         x = self.to_patch_embedding(img)
-        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=b)
+        b, n, _ = x.shape
+
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = b)
         x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding[:, :(x.shape[1])]
+        x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
 
-        transformer_output = self.transformer(x)
+        x = self.transformer(x)
 
-        # Apply pooling if specified
-        if self.pool == 'mean':
-            transformer_output = transformer_output.mean(dim=1)
-        else:
-            transformer_output = transformer_output[:, 0]
+        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
 
-        # Combine transformer and convolutional features if use_conv is True
-        if self.use_conv:
-            combined_features = torch.cat([transformer_output, conv_features], dim=1)
-            final_features = self.fusion_layer(combined_features)
-        else:
-            final_features = transformer_output
-
-        # Pass the combined features through the classification head
-        return self.mlp_head(final_features)
+        x = self.to_latent(x)
+        return self.mlp_head(x)
