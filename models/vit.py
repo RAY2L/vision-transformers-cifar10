@@ -112,14 +112,17 @@ class ViT(nn.Module):
         self.use_conv = use_conv
         self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
 
+        if use_conv:
+            self.res_weight = nn.Parameter(torch.ones(1))
+
     def forward(self, img):
         if self.use_conv:
             # Apply the convolutional layer to the input
             conv_img = self.conv_layer(img)
 
             # Add the convolved image back to the original input
-            img = img + conv_img
-            img = torch.relu(img)
+            # img = img + conv_img
+            img = img + self.res_weight * conv_img
 
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
