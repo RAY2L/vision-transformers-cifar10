@@ -119,6 +119,7 @@ class ViT(nn.Module):
 
             # Add the convolved image back to the original input
             img = img + conv_img
+            img = torch.relu(img)
 
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
