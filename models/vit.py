@@ -113,16 +113,16 @@ class ViT(nn.Module):
         self.conv_layer = nn.Conv2d(channels, channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=channels)
 
         if use_conv:
-            self.gate = nn.Sequential(
-                nn.Conv2d(channels, channels, kernel_size=1),  # 1x1 convolution
-                nn.Sigmoid()
-            )
+            self.res_weight = nn.Parameter(torch.ones(1))
 
     def forward(self, img):
         if self.use_conv:
+            # Apply the convolutional layer to the input
             conv_img = self.conv_layer(img)
-            gate = self.gate(img)
-            img = img + gate * conv_img
+
+            # Add the convolved image back to the original input
+            # img = img + conv_img
+            img = img + self.res_weight * conv_img
 
         x = self.to_patch_embedding(img)
         b, n, _ = x.shape
